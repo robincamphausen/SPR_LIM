@@ -1,86 +1,79 @@
-% Master File for SPR-LIM full propagation - plotting a bunch of different
-% coefficients for Roland's thesis with internal angle
+% Master File for SPR-LIM - plotting a bunch of different Fresnel P ref.
+% coefficients for Roland with internal angle 60º(?) or 53º(?) and wavelength
+% range 500-750nm
+
+% exports: CSV file of angle vs int and phase for all three cases
+
+% 22 June 2018
+% ------------------------------------------------------------------------
+clear all
+close all
 
 % When using new material, remember to find refractive index data and insert
 % into initialiseRefIndex function. This code only uses non-magnetic
 % materials, therefore mu is always equal to mu_0 (and can therefore be
-% neglected)
+% neglected):
 
-clear all
-close all
-
-% Start by initialising theta, lambda and n (refractive index) values of layers
-thetaSpacing = 0.1; % in degrees
-theta = 42:thetaSpacing:75;
-lambdaSpacing = 1; %in nm
-lambda = 500 : lambdaSpacing : 900; %in nm
-
-% Phase due to Savart plate
-alpha1 = linspace(0,2*pi,20);
-
-% Define input and measurement polariser 
-% (electric field in x,y basis (xhat = [1;0] and yhat = [0;1]))
-inputPol = 1/(sqrt(2)) * [1;1];
-measurementPol = 1/(sqrt(2)) * [-1;1];
-
-numThicknesses = 4;
-phase = zeros(numThicknesses,length(theta));
-intensity = zeros(numThicknesses,length(theta));
-
-%always let phase(1,:) and intensity(1,:) be for no sample, i.e.
-%prism-Au-H2O structure
-
-refCoeff_forPlotting = cell (2,numThicknesses);
-
-for thicknessCounter = 1:numThicknesses
-    
-    if thicknessCounter ==1
-        layersRefIndex = [1,2,3];
-    else
-        layersRefIndex = [1,2,7,3];
-    end
-    % layersRefIndex is array with elements defining layers according to:
+% layersRefIndex is array with elements defining layers according to:
     % 1: prism in lab (n = 1.774 for all lambda)
     % 2: Gold (from RefractiveIndexInfo)
-    % 3: water (n = 1.33 for all lambda)
+    % 3: water (n = 1.333 for all lambda)
     % 4: water (from RefractiveIndexInfo)
     % 5: Aluminium (from RefractiveIndexInfo)
     % 6: Silver (from RefractiveIndexInfo)
     % 7: SiO2 (from RefractiveIndexInfo)
+    % 8: glycerol/H20 (n = 1.335 for all lambda)
     %  etc
-
-    if thicknessCounter ==1
-        d = 50;
-    elseif thicknessCounter ==2
-        d = [50, 1];
-    elseif thicknessCounter ==3
-        d = [50, 2.5];
-    else
-        d = [50, 5];
-    end
-    %d is array with layer thicknesses in nm (two elements shorter than layersRefIndex)
-
-    [refP_toPlot, refS_toPlot, ~, ~] = transferMatrixFunction(layersRefIndex, d, lambda, theta);
     
-    refCoeff_forPlotting{1,thicknessCounter} = refP_toPlot;
-    refCoeff_forPlotting{2,thicknessCounter} = refS_toPlot;
-%     
-%     refCoeff_forPlotting{:,thicknessCounter} = ...
-%         transferMatrixFunction(layersRefIndex, d, lambda, theta);
-    
-measuredIntensitySimple = propagationInt_onlySimple( theta, lambda, layersRefIndex, d,...
-    alpha1, inputPol, measurementPol);
+% Initialise n (refractive index) values of layers and thicknesses
+n1 = [1,2,3];
+n3 = [1,2,8];
+d1 = 40; %in nm
+d2 = 50; %in nm
 
-measuredIntensitySimpleBroad = broadSpectrum(measuredIntensitySimple,625, lambda);
+% Initialise theta and lambda:
+theta = 60; % @theta=60, theta_ext = 48.6
+% theta = 53; % @theta=53, theta_ext = 35
+lambdaSpacing = 0.1; %in nm
+lambda = 250 : lambdaSpacing : 1000; %in nm
 
-[ phase(thicknessCounter,:), intensity(thicknessCounter,:)] = ...
-    PSDH( measuredIntensitySimpleBroad, alpha1, 0);
+% find complex P reflection coefficients:
+[refP(1,:), ~, ~, ~] = transferMatrixFunction(n1, d1, lambda, theta);
+[refP(2,:), ~, ~, ~] = transferMatrixFunction(n1, d2, lambda, theta);
+[refP(3,:), ~, ~, ~] = transferMatrixFunction(n3, d2, lambda, theta);
+
+% apply spectral broadening:
+% normalised Gaussian pulse with 2*sigma^2=5nm (i.e. width of whole pulse is 5nm):
+centreLambda = lambda(ceil(length(lambda)/2));
+sigma = sqrt(5/2);
+sourceWidth = lambdaSpacing* 1/(sigma*sqrt(2*pi)) * exp(-0.5*((lambda-centreLambda)/sigma).^2);
+
+%or for tabletop source:
+flatSource = zeros(1,length(lambda));
+notZero = abs(lambda-centreLambda)<=sigma;
+flatSource(notZero) = lambdaSpacing* 1/(2*sigma);
+
+for counter = 1:length(refP(:,1))
+    broadRefP(counter,:) = conv(refP(counter,:),sourceWidth,'same');
+    broadRefP_flat(counter,:) = conv(refP(counter,:),flatSource,'same');
 end
-phase = mod(phase, pi);
 
-theta_ext = 74+180/pi*asin(sin(pi/180 * (theta-74))*1.775);
+figure(1)
+hold on
+yyaxis left
+int1 = plot(lambda, abs(broadRefP(1,:)).^2,'b');
+int2 = plot(lambda, abs(broadRefP(2,:)).^2,'r');
+int3 = plot(lambda, abs(broadRefP(3,:)).^2,'g');
+yyaxis right
+phase1 = plot(lambda, angle(broadRefP(1,:)),'--b');
+phase2 = plot(lambda, angle(broadRefP(2,:)),'--r');
+phase3 = plot(lambda, angle(broadRefP(3,:)),'--g');
+xlim([500,750])
 
-% phase = 625/(2*pi)*phase;
+legend('40nm Au, Water','50nm Au, Water','50nm Au, Water and G'
 
-plotsForJan2017( phase, intensity, theta_ext )
-plotsForJuly2017Report(theta_ext, lambda, refCoeff_forPlotting)
+% save coeffs for exporting
+SPR_june2018(1,:)= lambda;
+SPR_june2018([2 4 6],:) = abs(broadRefP).^2;
+SPR_june2018([3 5 7],:) = angle(broadRefP);
+SPR_june2018 = SPR_june2018';

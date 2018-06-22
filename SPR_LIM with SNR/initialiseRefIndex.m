@@ -21,8 +21,8 @@ for counter = 1:length(uniqueIndices)
         inRangeAu = import_nAu(:,1)*1E3 <= max(lambda)+100;
         import_nAu = [import_nAu(inRangeAu,1)*1E3 import_nAu(inRangeAu,2)+1i*import_nAu(inRangeAu,3)];
         uniqueIndexArray(:,counter) = interp1(import_nAu(:,1),import_nAu(:,2),lambda);
-    elseif uniqueIndices(counter) == 3 % water = 1.33
-        uniqueIndexArray(:,counter) = 1.33*ones(1,length(lambda));
+    elseif uniqueIndices(counter) == 3 % water = 1.333
+        uniqueIndexArray(:,counter) = 1.333*ones(1,length(lambda));
     elseif uniqueIndices(counter) == 4 % water from RefractiveIndexInfo
         fid_H2O = fopen('n_H2O.txt');
         import_nH2O = textscan(fid_H2O, '%f%f%f');
@@ -55,6 +55,8 @@ for counter = 1:length(uniqueIndices)
         inRangeSiO2 = import_nSiO2(:,1)*1E3 <= max(lambda)+100;
         import_nSiO2 = [import_nSiO2(inRangeSiO2,1)*1E3 import_nSiO2(inRangeSiO2,2)];
         uniqueIndexArray(:,counter) = interp1(import_nSiO2(:,1),import_nSiO2(:,2),lambda);
+    elseif uniqueIndices(counter) == 8 % water and glycerol = 1.335
+        uniqueIndexArray(:,counter) = 1.335*ones(1,length(lambda));
     else
         display('Refractive Index not found!')
         return
