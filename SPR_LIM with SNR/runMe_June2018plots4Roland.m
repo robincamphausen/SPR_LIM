@@ -18,6 +18,11 @@ theta = 60;
 lambdaSpacing = 0.1; %in nm
 lambda = 500 : lambdaSpacing : 750; %in nm
 
+
+
+[refP_toPlot, refS_toPlot, ~, ~] = transferMatrixFunction(layersRefIndex, d, lambda, theta);
+
+
 % Phase due to Savart plate
 alpha1 = linspace(0,2*pi,20);
 
@@ -81,9 +86,6 @@ measuredIntensitySimpleBroad = broadSpectrum(measuredIntensitySimple,625, lambda
 end
 phase = mod(phase, pi);
 
-theta_ext = 74+180/pi*asin(sin(pi/180 * (theta-74))*1.775);
-
-% phase = 625/(2*pi)*phase;
-
-plotsForJan2017( phase, intensity, theta_ext )
-plotsForJuly2017Report(theta_ext, lambda, refCoeff_forPlotting)
+% 
+% plotsForJan2017( phase, intensity, theta_ext )
+% plotsForJuly2017Report(theta_ext, lambda, refCoeff_forPlotting)
